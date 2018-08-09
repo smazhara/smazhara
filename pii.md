@@ -1,32 +1,32 @@
-# PII
+# Detecting Personally Identifiable Information (PII)
 
-Personally Identifiable Information (PII) is a term that we enterprise
-developers are hearing about more and more these days. It's a legal term that
+Personally Identifiable Information (PII) is a term that we, enterprise
+developers, are hearing about more and more these days. It's a legal term that
 refers to a set of attributes that can be used to personally identify a person.
 The definition of what exactly constitutes a PII somewhat varies from
 jurisdiction to jurisdiction but it commonly includes such things as full name,
-email, address, phone number, national id, date of birth.
+email, address, phone number, national id, and date of birth.
 
 Why is PII important for developers? Because of various national laws that
 prescribe us how to handle it: what and when can be requested, how it can be
 stored, processed, archived and destroyed. The main goal, of course, is to
-reduce risks, associated with the loss of privacy and identity theft. There are
+reduce risks associated with identity theft and the loss of privacy. There are
 numerous policies, protocols, and technologies that deal with how to properly
 store PII. But here I want to focus on one, often overlooked, aspect of PII
 handling. Namely, how NOT to store it.
 
 The problem with information in enterprise applications is that it's like a
 water. It's everywhere: in databases, key-value stores, flat files,
-logs etc. And, like a water, it always finds a way to leak to places where it
-shouldn't be. You can have all the discipline in the world, but one day one
-you'll end up with 120Gb of logs contaminated with social security numbers. And
+logs etc. And, like a water, it always finds ways to leak to places where it
+shouldn't be. You can have all the discipline in the world, but one day
+you'll end up with 120GB of logs contaminated with social security numbers. And
 you'll be lucky if you notice it when you are checking your logs, not the
 news.google.com.
 
 Bottom line is, your PII will leak. You can contain it, but it will leak
 anyway. We need to constantly be on a lookout. Obviously, eyeballing is
 not a scalable strategy. We need better ideas. One such idea I want to
-explore today is an unstructured data PII detector.
+explore today is a PII detector.
 
 
 ## The problem
@@ -41,15 +41,16 @@ tackle it.
 
 ## The plan
 
-How about we treat this text as a language with a rather bizarre grammar?
+The plan is to try to treat this text as a language. A language with a rather bizarre grammar,
+but a language nonetheless.
 We don't know its structure ahead of time. It could be Apache style log,
 it could be Splunk key-value pairs, it could be natural language text, csv,
 anything really. What we do know is that it may have fragments that _look_ like
 PII and we think we know how PII looks like.
 
-Let's try to build a PII lexer. Just a quick refresher: lexer is a tool
+Let's try to build a PII lexer. Just a quick refresher: a lexer is a tool
 that does _lexical analysis_. It consumes a raw stream of characters and
-converts it to a list of _lexemes_ (also known as _tokens_). And lexeme is
+converts it to a list of _lexemes_ (also known as _tokens_). And a lexeme is
 a sequence of characters with assigned name. In natural languages we would
 assign names like _noun, verb, adverb etc._ In computer languages we would
 use _keyword, literal, comment etc._ In our world we would use names like
@@ -60,7 +61,7 @@ So what makes our grammar bizarre? Two things.
 
 First, it's non-deterministic. We can only _probabilistically_ parse it.
 Is _98-12-09_ a date of birth, a phone number or a SKU? Is _Private_
-a last name or a part of a sentence that describes the differences between
+a last name or a part of a sentence that describes differences between
 private and public property? This can be resolved by various rules like,
 erring on the side of caution, using overrides etc.
 
@@ -75,11 +76,11 @@ With that in mind let's proceed to...
 
 ### The Scanner
 
-Let's start building a trivial regular expression based lexer which
+Let's start building a trivial regular expression based lexer (the scanner) which
 essentially loops over a `token: <regex>` hash and labels all substrings
 that match this regex as a `token`.
 
-Here is a sketch (Ruby):
+Here is the sketch (Ruby):
 
 ```ruby
 
@@ -88,13 +89,13 @@ text = 'Jon Doe email is jon@example.com and his phone is 556-321-9876'
 
 # our PII lexicon
 lexicon = {
-  email: /\w+@(?:\w+\.)+\w+/,
-  phone: /\d{3}-\d{3}-\d{4}/
+  email: /\w+@(?:\w+\.)+\w+/, # a naive idea of what email address looks like
+  phone: /\d{3}-\d{3}-\d{4}/  # similarly naive idea about phone number
 }
 
 result = {}
 
-# a parser
+# a scanner
 lexicon.each do |lexeme, regex|
   result[lexeme] = text.scan(regex)
 end
@@ -103,7 +104,7 @@ result
 #=> {:email=>["jon@example.com"], :phone=>["556-321-9876"]}
 ```
 
-Not bad. We found both email and phone. Obviously, in real life those regexes
+Not bad. We found both an email and a phone. Obviously, in real life those regexes
 ought to be a lot more complex to account for endless national and regional
 formats. However, there is a bigger problem than simply inadequate regexes.
 Notice how I conveniently ommited perhaps _the_ most important piece of PII - a
@@ -131,11 +132,11 @@ lexicon.merge!(name: /[a-zA-Z]+/)
   "phone", "is"]}
 ```
 
-Oh, good. We got his name now. But we also scooped a whole bunch of non-names.
-The only option we have at this point is dictionary search to confirm that the
+Oh, good. We got names now. But we also scooped a whole bunch of non-name words.
+The only option we have at this point is a dictionary search to confirm that the
 word is the first or last name indeed. This is where things get a little tricky.
 We'd need to collect as many names from various sources as possible and search
-them for any candidate words have.
+them for any candidate words we have.
 
 How do we efficiently determine if a given string is present in a potentially
 giant dictionary without blowing up our little script?
@@ -151,6 +152,7 @@ this is a Ruby gem implementing trie. Next, we need to ingest names to it:
 ```ruby
 require 'rambling-trie'
 
+# names.txt is a text file where we laboriously collected "all" names
 Rambling::Trie.dump(Rambling::Trie.create('names.txt'), 'names.dump')
 ```
 
@@ -183,32 +185,33 @@ Here is what we learned from these exercises.
 ### Scanning lexers are not enough
 
 Regular expressions alone are not enough to find all lexemes. That's why we are
-using them to quickly _scan_ the input and grab everything that looks
-like a candidate. Then we further _evaluate_ our candidates to filter our false
+using them to quickly _scan_ the input and grab all lexeme candidates. Then we
+further _evaluate_ our candidates to filter out false
 positives using plain Ruby.
 
 Examples of lexemes that can probably be adequately identified using regular
 expressions alone include phone numbers and email addresses. Although phone
 numbers' regular expressions can get (quite
 hairy)[https://en.wikipedia.org/wiki/National_conventions_for_writing_telephone_numbers].
-Also, one can imagine overly sophisticated evaluator that checks DNS or yellow book records.
+Also, one can imagine an overly sophisticated evaluator that checks DNS or yellow book records.
 
 
 ### Lexing in general is not enough
 
 In order to improve ambiguous lexemes resolution accuracy we may need to do
-some _parsing_. For example, word 'Private' could be a regular word or it could
-be last name. However, in order to decide one way or another we may need to
+some _parsing_. Parsing means going one level above lexems and starting to take into
+account their spatial relationships. For example, word 'Private' could be a regular
+word or it could be a last name. However, in order to decide one way or another, we may need to
 look around. If we see 'Private <first-name>' yeah, it's a last name, all
-right. However, if we see 'Private property' then nope.
+right. On the other hand, if we see 'Private property' then it's likely a common word.
 
 ### It doesn't matter
 
-We don't need a 100% error proof solution. Remember, this is not an adversarial
-situation. Nobody is going to try to avoid detection by deliverately inserting
+Yes, it doesn't matter because we don't need a 100% error proof solution. Remember,
+this is not an adversarial situation. Nobody is going to try to avoid detection by deliverately inserting
 funny delimiters and doing ROT13 substitution. If we accidentally leak PII to
 our logs we are likely going to do it big time and even our primitive filter
-will find it out quickly without having to resort to fine semantic nuances.
+will find it out quickly without having to resort to a nuanced semantic analysis.
 
 
 ps: I figured I'll put my (code)[https://github.com/smazhara/stockade] where my
