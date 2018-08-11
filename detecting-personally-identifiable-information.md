@@ -1,5 +1,7 @@
-# Detecting Personally Identifiable Information (PII)
+---
+---
 
+# Detecting Personally Identifiable Information (PII)
 Personally Identifiable Information (PII) is a term that we, enterprise
 developers, are hearing about more and more these days. It's a legal term that
 refers to a set of attributes that can be used to personally identify a person.
@@ -214,5 +216,5 @@ our logs we are likely going to do it big time and even our primitive filter
 will find it out quickly without having to resort to a nuanced semantic analysis.
 
 
-ps: I figured I'll put my (code)[https://github.com/smazhara/stockade] where my
+ps: I figured I'll put my [code](https://github.com/smazhara/stockade) where my
 mouth is.

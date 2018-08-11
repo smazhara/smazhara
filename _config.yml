@@ -1,1 +1,11 @@
 theme: jekyll-theme-minimal
+title: Stan Mazhara
+description: |
+  <a href="https://www.linkedin.com/in/mazhara/">
+    <img src="assets/img/linkedin.png">
+  </a>
+  <a href="https://github.com/smazhara">
+    <img src="assets/img/github.png" style="height: 21px">
+  </a>
+github:
+  is_project_page: false
