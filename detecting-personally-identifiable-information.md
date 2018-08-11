@@ -89,10 +89,10 @@ Here is the sketch (Ruby):
 # text badly contaminated with PII
 text = 'Jon Doe email is jon@example.com and his phone is 556-321-9876'
 
-# our PII lexicon
+# our PII naive lexicon
 lexicon = {
-  email: /\w+@(?:\w+\.)+\w+/, # a naive idea of what email address looks like
-  phone: /\d{3}-\d{3}-\d{4}/  # similarly naive idea about phone number
+  email: /\w+@(?:\w+\.)+\w+/,
+  phone: /\d{3}-\d{3}-\d{4}/
 }
 
 result = {}
@@ -109,7 +109,7 @@ result
 Not bad. We found both an email and a phone. Obviously, in real life those regexes
 ought to be a lot more complex to account for endless national and regional
 formats. However, there is a bigger problem than simply inadequate regexes.
-Notice how I conveniently ommited perhaps _the_ most important piece of PII - a
+Notice how I conveniently omitted perhaps _the_ most important piece of PII - a
 full name. As you probably guessed a regex that matches all names (for whatever
 reasonable definition of 'all') is not going to be practical.
 
@@ -130,8 +130,8 @@ lexicon.merge!(name: /[a-zA-Z]+/)
 #=>
 {:email=>["jon@example.com"],
  :phone=>["556-321-9876"],
-  :name=>["Jon", "Doe", "email", "is", "jon", "example", "com", "and", "his",
-  "phone", "is"]}
+  :name=>["Jon", "Doe", "email", "is", "jon", "example", "com", "and",
+  "his", "phone", "is"]}
 ```
 
 Oh, good. We got names now. But we also scooped a whole bunch of non-name words.
@@ -159,14 +159,16 @@ Rambling::Trie.dump(Rambling::Trie.create('names.txt'), 'names.dump')
 ```
 
 This converts our `names.txt`, a text file with one name per-line, to a more
-efficient marshalled dump of trie. Next, we can just filter out all non-names:
+efficient marshaled dump of trie. Next, we can just filter out all non-names:
 
 ```ruby
 trie = Rambling::Trie.load('names.dump')
 
 result[:name].select! { |name| trie.include?(name) }
 
-#=> {:email=>["jon@example.com"], :phone=>["556-321-9876"], :name=>["Jon", "Doe"]}
+#=>
+{:email=>["jon@example.com"], :phone=>["556-321-9876"],
+  :name=>["Jon", "Doe"]}
 ```
 
 Great! We've identified all pieces of PII in our little example and are now in
@@ -200,20 +202,23 @@ Also, one can imagine an overly sophisticated evaluator that checks DNS or yello
 
 ### Lexing in general is not enough
 
-In order to improve ambiguous lexemes resolution accuracy we may need to do
-some _parsing_. Parsing means going one level above lexems and starting to take into
-account their spatial relationships. For example, word 'Private' could be a regular
-word or it could be a last name. However, in order to decide one way or another, we may need to
-look around. If we see 'Private <first-name>' yeah, it's a last name, all
-right. On the other hand, if we see 'Private property' then it's likely a common word.
+In order to improve ambiguous lexemes resolution accuracy we may need to
+do some _parsing_. Parsing means going one level above lexemes and
+starting to take into account their spatial relationships. For example,
+word 'Private' could be a regular word or it could be a last name.
+However, in order to decide one way or another, we may need to look
+around. If we see 'Private <first-name>' yeah, it's a last name, all
+right. On the other hand, if we see 'Private property' then it's likely
+a common word.
 
 ### It doesn't matter
 
-Yes, it doesn't matter because we don't need a 100% error proof solution. Remember,
-this is not an adversarial situation. Nobody is going to try to avoid detection by deliverately inserting
-funny delimiters and doing ROT13 substitution. If we accidentally leak PII to
-our logs we are likely going to do it big time and even our primitive filter
-will find it out quickly without having to resort to a nuanced semantic analysis.
+Yes, it doesn't matter because we don't need a 100% error proof solution.
+Remember, this is not an adversarial situation. Nobody is going to try to
+avoid detection by deliberately inserting funny delimiters and doing ROT13
+substitution. If we accidentally leak PII to our logs we are likely going
+to do it big time and even our primitive filter will find it out quickly
+without having to resort to a nuanced semantic analysis.
 
 
 ps: I figured I'll put my [code](https://github.com/smazhara/stockade) where my
